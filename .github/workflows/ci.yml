@@ -24,6 +24,8 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew -p core/domain test --stacktrace
+      - if: always()
+        run: python3 .github/scripts/test-summary.py core/domain/build/test-results
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -41,6 +43,8 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --stacktrace
+      - if: always()
+        run: python3 .github/scripts/test-summary.py app/build/test-results
       - if: always()
         uses: actions/upload-artifact@v4
         with:
