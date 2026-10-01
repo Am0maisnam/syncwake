@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SyncWake</string>
+    <string name="alarm_default_label">Alarm</string>
+    <string name="ringing_text">Tap to dismiss with your wake-up code</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_snooze">Snooze</string>
+    <string name="snoozed_title">Snoozed until %1$s</string>
+    <string name="missed_title">Missed alarm</string>
+    <string name="wake_proof_title">Still awake? 👀</string>
+    <string name="wake_proof_text">Tap to confirm you\'re up</string>
+    <string name="wake_proof_confirm">I\'m awake</string>
+    <string name="channel_ringing">Alarms</string>
+    <string name="channel_ringing_desc">Ringing alarms. Turning this off can stop alarms from appearing.</string>
+    <string name="channel_wake_proof">Wake-Up Proof</string>
+    <string name="channel_wake_proof_desc">\"Still awake?\" checks after your alarm</string>
+    <string name="channel_status">Alarm status</string>
+    <string name="channel_status_desc">Snoozed and missed alarms</string>
+</resources>
