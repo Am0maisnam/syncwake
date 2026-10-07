@@ -25,6 +25,11 @@ Verification, Premium and the backend come in later phases.
   bounded re-alert if ignored
 - Smart Alarm Preparation: "Your next alarm is ready ✓", or a specific explanation and a FIX button
 
+## Try it on a phone
+
+See [`docs/TESTING_ON_A_PHONE.md`](docs/TESTING_ON_A_PHONE.md). Every CI run on GitHub publishes an
+installable `syncwake-debug-apk`.
+
 ## Build and test
 
 ```sh
