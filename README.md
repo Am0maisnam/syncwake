@@ -16,6 +16,8 @@ Verification, Premium and the backend come in later phases.
 - Snooze with limits, ring timeout -> missed, alarm history (last 7 days)
 - Bundled fallback alarm sound; custom sound -> bundled -> system default chain, so a broken
   custom sound never produces a silent alarm
+- Custom (and, later, voice) alarm sounds play for the first minute only: if you haven't started
+  dismissing by then, the built-in alarm tone takes over for the rest of that ring
 - Dismissal challenge: 7 random unambiguous characters, case-insensitive, 15 seconds starting
   when you press Dismiss, progressive window brightness, haptics, capped escalation (a simple
   sum after 3 failures), accessibility options (30-second time, no extra steps, no brightness changes)

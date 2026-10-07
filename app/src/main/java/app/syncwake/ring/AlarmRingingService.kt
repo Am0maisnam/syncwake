@@ -18,11 +18,13 @@ import app.syncwake.R
 import app.syncwake.data.ChallengeAttemptEntity
 import app.syncwake.data.alarmState
 import app.syncwake.data.snoozePolicy
+import app.syncwake.domain.alarm.AlarmSoundEscalation
 import app.syncwake.domain.alarm.SnoozePolicy
 import app.syncwake.domain.state.AlarmEvent
 import app.syncwake.domain.state.AlarmState
 import app.syncwake.domain.state.ChallengeFailureReason
 import app.syncwake.notify.Notifications
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -56,7 +58,12 @@ class AlarmRingingService : Service() {
         var state: AlarmState,
         var failures: Int,
         var snoozeCount: Int,
-    )
+    ) {
+        /** elapsedRealtime when the current ring started; drives the custom-sound time limit. */
+        var ringStartedElapsed: Long = 0
+        /** The custom sound has been replaced by the built-in tone for this ring. */
+        var soundEscalated: Boolean = false
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutex = Mutex()
@@ -72,6 +79,9 @@ class AlarmRingingService : Service() {
     private var isForeground = false
 
     private val ringTimeout = Runnable { scope.launch { mutex.withLock { onRingTimeout() } } }
+    private val soundEscalation = AlarmSoundEscalation()
+    private val customSoundLimitReached = Runnable { scope.launch { mutex.withLock { queue.firstOrNull()?.let { applySoundEscalation(it) } } } }
+
     private val challengeWatchdog = Runnable {
         scope.launch { mutex.withLock { queue.firstOrNull()?.let { onChallengeFailed(it, ChallengeFailureReason.ABANDONED) } } }
     }
@@ -143,8 +153,7 @@ class AlarmRingingService : Service() {
         val now = System.currentTimeMillis()
         val existing = queue.firstOrNull { it.id == occurrenceId }
         if (existing != null) {
-            // Duplicate delivery or a Wake-Up Proof re-alert of something already queued.
-            if (queue.first() === existing && existing.state == AlarmState.RINGING) startRinging(existing)
+            // Duplicate delivery: keep ringing as is (restarting would reset the custom-sound limit).
             publish()
             return
         }
@@ -219,6 +228,8 @@ class AlarmRingingService : Service() {
         audio.setVolume(CHALLENGE_VOLUME)
         vibrator.stop()
         handler.removeCallbacks(ringTimeout)
+        // Starting the challenge counts as waking up: never switch sounds mid-challenge.
+        handler.removeCallbacks(customSoundLimitReached)
         handler.removeCallbacks(challengeWatchdog)
         handler.postDelayed(challengeWatchdog, timeLimitMillis + WATCHDOG_GRACE_MILLIS)
         publish()
@@ -256,6 +267,8 @@ class AlarmRingingService : Service() {
         val resumed = repo.transition(head.id, AlarmEvent.ResumeRinging, now)
         head.failures++
         head.state = resumed?.alarmState ?: AlarmState.RINGING
+        // Past the custom-sound limit, ringing resumes on the built-in tone.
+        applySoundEscalation(head)
         audio.setVolume(1f)
         if (head.vibrate) vibrator.start()
         // The ring timeout was paused during the challenge; give at least one more minute.
@@ -278,7 +291,10 @@ class AlarmRingingService : Service() {
 
     private fun startRinging(active: Active) {
         audio.setVolume(1f)
+        active.ringStartedElapsed = SystemClock.elapsedRealtime()
+        active.soundEscalated = false
         audio.start(active.soundUri)
+        applySoundEscalation(active)
         if (active.vibrate) vibrator.start() else vibrator.stop()
         acquireWakeLock(active.ringDurationMillis + WAKE_LOCK_MARGIN_MILLIS)
         ringDeadlineElapsed = SystemClock.elapsedRealtime() + active.ringDurationMillis
@@ -287,9 +303,36 @@ class AlarmRingingService : Service() {
         goForeground(active.id, active.label, canSnooze = active.snooze.canSnooze(active.snoozeCount))
     }
 
+    /**
+     * Custom/voice sounds play for at most [AlarmSoundEscalation.customSoundLimit] of ringing; after
+     * that the built-in tone takes over. Called when ringing starts or resumes and when the limit
+     * elapses. Does nothing during a challenge.
+     */
+    private fun applySoundEscalation(active: Active) {
+        handler.removeCallbacks(customSoundLimitReached)
+        if (queue.firstOrNull() !== active || active.state != AlarmState.RINGING) return
+        val ringingFor = Duration.ofMillis(SystemClock.elapsedRealtime() - active.ringStartedElapsed)
+        val hasCustom = active.soundUri != null
+        when (soundEscalation.soundFor(hasCustom, ringingFor, active.soundEscalated)) {
+            AlarmSoundEscalation.Sound.CUSTOM -> {
+                val wait = soundEscalation.timeUntilSwitch(hasCustom, ringingFor, active.soundEscalated) ?: return
+                handler.postDelayed(customSoundLimitReached, wait.toMillis())
+            }
+            AlarmSoundEscalation.Sound.DEFAULT -> if (hasCustom && !active.soundEscalated) {
+                active.soundEscalated = true
+                // If the custom sound already failed, the built-in tone is playing; leave it alone.
+                if (audio.playingCustom) {
+                    Log.i(TAG, "Custom sound limit reached for ${active.id}; switching to the built-in tone")
+                    audio.playDefault()
+                }
+            }
+        }
+    }
+
     /** Finish the head occurrence and ring the next queued one, or stop. */
     private fun advance() {
         queue.removeFirstOrNull()
+        handler.removeCallbacks(customSoundLimitReached)
         handler.removeCallbacks(ringTimeout)
         handler.removeCallbacks(challengeWatchdog)
         audio.stop()

@@ -37,6 +37,7 @@ class AlarmAudioPlayer(private val context: Context) {
         .build()
 
     private var player: MediaPlayer? = null
+    private var currentSource: Source? = null
     private var remaining: ArrayDeque<Source> = ArrayDeque()
     private var volume = 1f
 
@@ -44,9 +45,20 @@ class AlarmAudioPlayer(private val context: Context) {
     var playing: String? = null
         private set
 
+    /** True while the custom (or voice) sound is the one actually playing. */
+    val playingCustom: Boolean get() = currentSource is Source.Custom
+
     fun start(customUri: Uri?) {
         stop()
         remaining = ArrayDeque(listOfNotNull(customUri?.let { Source.Custom(it) }, Source.Bundled, Source.SystemDefault))
+        audioManager.requestAudioFocus(focusRequest)
+        playNext()
+    }
+
+    /** Switch to the built-in alarm tone (system default as its backup), keeping the current volume. */
+    fun playDefault() {
+        stop()
+        remaining = ArrayDeque(listOf(Source.Bundled, Source.SystemDefault))
         audioManager.requestAudioFocus(focusRequest)
         playNext()
     }
@@ -66,6 +78,7 @@ class AlarmAudioPlayer(private val context: Context) {
             it.release()
         }
         player = null
+        currentSource = null
         playing = null
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
@@ -97,6 +110,7 @@ class AlarmAudioPlayer(private val context: Context) {
                 failed.release()
                 if (player === failed) {
                     player = null
+                    currentSource = null
                     playNext()
                 }
                 true
@@ -105,6 +119,7 @@ class AlarmAudioPlayer(private val context: Context) {
             mp.setVolume(volume, volume)
             mp.start()
             player = mp
+            currentSource = source
             playing = source.toString()
             true
         } catch (e: Exception) {

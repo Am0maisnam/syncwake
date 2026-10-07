@@ -227,7 +227,8 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
                 if (soundUri != null) TextButton(onClick = { soundUri = null }) { Text("RESET") }
             }
             Text(
-                "If a chosen sound can't play, the built-in alarm plays instead.",
+                "A chosen sound plays for the first minute. If you haven't started dismissing by then, " +
+                    "or it can't play, the built-in alarm takes over.",
                 color = SyncWakeColors.Muted,
             )
             ToggleRow("Vibrate", vibrate) { vibrate = it }

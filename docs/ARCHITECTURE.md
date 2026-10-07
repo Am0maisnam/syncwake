@@ -29,6 +29,8 @@ setAlarmClock(trigger, PendingIntent -> AlarmReceiver)
   -> AlarmReceiver.onReceive: startForegroundService(AlarmRingingService)   (no I/O first)
   -> service: startForeground() immediately, then load the occurrence from Room
   -> transition SCHEDULED -> RINGING, play audio (custom -> bundled -> system), vibrate
+  -> custom/voice sound still playing after 1 minute with no Dismiss -> switch to the built-in tone
+     (AlarmSoundEscalation; never mid-challenge; a failed challenge after 1 minute resumes on it)
   -> full-screen intent -> AlarmActivity (over the lock screen)
   -> Dismiss -> DISMISS_CHALLENGE (audio lowered, not muted; 15 s timer starts now)
        success -> COMPLETED -> (wake proof check scheduled) ... -> CONFIRMED_AWAKE
@@ -126,6 +128,7 @@ Implemented now (`core/domain` unit tests and `app` Robolectric tests):
 | 9 | Brightness progression | `ChallengeTest.brightnessIncreasesMonotonicallyToMax` |
 | 15 (partial) | No activity -> Wake-Up Proof | wake proof is currently always used (`AlarmCoordinatorTest.ignoredWakeProofReAlertsThroughAlarmManager`) |
 | 17-18 | Wake-Up Proof success / ignored | `AlarmStateMachineTest`, `AlarmCoordinatorTest` |
+| — | Custom sound -> built-in tone after 1 minute | `AlarmSoundEscalationTest` (policy); device test needed for the audio switch |
 | 32 | Fallback alarm | `AlarmAudioPlayer` chain (device test needed); readiness `FALLBACK_AUDIO_MISSING` |
 | 33 | Time-zone change | `AlarmReconcilerTest.timeZoneChangeMovesFloatingAlarm`, `flyingEastCanMakeAnAlarmOverdue` |
 | 39 | Server unavailable during alarm | by design: no server dependency |
