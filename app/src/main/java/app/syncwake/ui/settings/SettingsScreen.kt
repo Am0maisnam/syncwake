@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -19,7 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.syncwake.Graph
 import app.syncwake.ui.theme.MonoLabel
@@ -56,19 +53,16 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Text("WAKE-UP PROOF", style = MonoLabel, color = SyncWakeColors.Muted)
         Text(
-            "A few minutes after you complete the challenge, SyncWake asks \"Still awake? 👀\". " +
+            "1 minute after you complete the challenge, SyncWake asks \"Still awake? 👀\". " +
                 "Answer with one tap. Smart Wake Verification, which can skip this check when your phone " +
                 "shows you're clearly up, is coming in a later update.",
             color = SyncWakeColors.Muted,
         )
         Toggle("Ask \"Still awake?\" after alarms", s.wakeProofEnabled) { v -> settings.update { it.copy(wakeProofEnabled = v) } }
-        Stepper("Ask after", "${s.wakeProofDelayMinutes} min", s.wakeProofDelayMinutes, 1..15) { v ->
-            settings.update { it.copy(wakeProofDelayMinutes = v) }
-        }
         Toggle("Ring again if I don't answer", s.wakeProofReAlert) { v -> settings.update { it.copy(wakeProofReAlert = v) } }
 
         Text("ACCESSIBILITY", style = MonoLabel, color = SyncWakeColors.Muted, modifier = Modifier.padding(top = 8.dp))
-        Toggle("Extended challenge time (30 seconds)", s.extendedChallengeTime) { v ->
+        Toggle("Extended challenge time (40 seconds)", s.extendedChallengeTime) { v ->
             settings.update { it.copy(extendedChallengeTime = v) }
         }
         Toggle("No extra steps after repeated failures", s.disableCognitiveEscalation) { v ->
@@ -88,15 +82,5 @@ private fun Toggle(text: String, checked: Boolean, onChange: (Boolean) -> Unit) 
     ) {
         Text(text, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = null)
-    }
-}
-
-@Composable
-private fun Stepper(text: String, valueText: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, modifier = Modifier.weight(1f))
-        TextButton(onClick = { onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−") }
-        Text(valueText, style = MonoLabel, textAlign = TextAlign.Center, modifier = Modifier.width(72.dp))
-        TextButton(onClick = { onChange((value + 1).coerceIn(range)) }, enabled = value < range.last) { Text("+") }
     }
 }

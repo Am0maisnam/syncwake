@@ -37,13 +37,13 @@ brands (Samsung, Xiaomi/Redmi, OnePlus, Pixel) and Android versions.
 | 7 | Phone off through alarm time, turn on within 15 min | Rings late |
 | 8 | Same, but turn on after 15+ min | "Missed alarm" notification, history shows Missed |
 | 9 | Dismiss → type the code correctly | Brightness rises per character, haptic ticks, alarm stops |
-| 10 | Dismiss → wait 15 s | Alarm returns to full volume; a new code next time |
+| 10 | Dismiss → wait 20 s | Alarm returns to full volume; a new code next time |
 | 11 | Type 3 wrong characters | Fails, alarm resumes |
 | 12 | Fail 3 times | 4th attempt adds a simple sum |
 | 13 | Press back / home during the challenge | Alarm keeps ringing |
 | 14 | Snooze | Silent, rings again after the snooze length |
 | 15 | Choose a custom sound, don't touch it for 1 min | Switches to the built-in tone |
-| 16 | Complete the challenge, wait 5 min | "Still awake? 👀" notification; tap I'm awake |
+| 16 | Complete the challenge, wait 1 min | "Still awake? 👀" notification; tap I'm awake |
 | 17 | Ignore "Still awake?" for 2 min | Alarm rings again |
 | 18 | Change time zone in Settings before an alarm | Rings at the same local time |
 | 19 | Alarm volume at 0 | Readiness card warns |

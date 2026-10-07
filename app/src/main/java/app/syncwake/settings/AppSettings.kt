@@ -4,14 +4,12 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.syncwake.domain.alarm.WakeProofPolicy
 import app.syncwake.domain.challenge.ChallengeAccessibility
-import java.time.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class SettingsSnapshot(
     val wakeProofEnabled: Boolean = true,
-    val wakeProofDelayMinutes: Int = 5,
     val wakeProofReAlert: Boolean = true,
     val extendedChallengeTime: Boolean = false,
     val disableCognitiveEscalation: Boolean = false,
@@ -20,7 +18,7 @@ data class SettingsSnapshot(
     val wakeProofPolicy: WakeProofPolicy
         get() = WakeProofPolicy(
             enabled = wakeProofEnabled,
-            checkAfter = Duration.ofMinutes(wakeProofDelayMinutes.coerceIn(1, 30).toLong()),
+            checkAfter = WakeProofPolicy.MAX_CHECK_AFTER,
             reAlertOnIgnore = wakeProofReAlert,
         )
 
@@ -47,7 +45,6 @@ class AppSettings(context: Context) {
         val next = transform(_state.value)
         prefs.edit()
             .putBoolean(K_WP_ENABLED, next.wakeProofEnabled)
-            .putInt(K_WP_DELAY, next.wakeProofDelayMinutes)
             .putBoolean(K_WP_REALERT, next.wakeProofReAlert)
             .putBoolean(K_EXT_TIME, next.extendedChallengeTime)
             .putBoolean(K_NO_COGNITIVE, next.disableCognitiveEscalation)
@@ -60,7 +57,6 @@ class AppSettings(context: Context) {
         val d = SettingsSnapshot()
         return SettingsSnapshot(
             wakeProofEnabled = prefs.getBoolean(K_WP_ENABLED, d.wakeProofEnabled),
-            wakeProofDelayMinutes = prefs.getInt(K_WP_DELAY, d.wakeProofDelayMinutes),
             wakeProofReAlert = prefs.getBoolean(K_WP_REALERT, d.wakeProofReAlert),
             extendedChallengeTime = prefs.getBoolean(K_EXT_TIME, d.extendedChallengeTime),
             disableCognitiveEscalation = prefs.getBoolean(K_NO_COGNITIVE, d.disableCognitiveEscalation),
@@ -70,7 +66,6 @@ class AppSettings(context: Context) {
 
     private companion object {
         const val K_WP_ENABLED = "wake_proof_enabled"
-        const val K_WP_DELAY = "wake_proof_delay_minutes"
         const val K_WP_REALERT = "wake_proof_realert"
         const val K_EXT_TIME = "a11y_extended_time"
         const val K_NO_COGNITIVE = "a11y_no_cognitive"

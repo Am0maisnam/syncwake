@@ -20,6 +20,7 @@ import app.syncwake.data.alarmState
 import app.syncwake.data.snoozePolicy
 import app.syncwake.domain.alarm.AlarmSoundEscalation
 import app.syncwake.domain.alarm.SnoozePolicy
+import app.syncwake.domain.challenge.ChallengeConfig
 import app.syncwake.domain.state.AlarmEvent
 import app.syncwake.domain.state.AlarmState
 import app.syncwake.domain.state.ChallengeFailureReason
@@ -115,7 +116,7 @@ class AlarmRingingService : Service() {
             }
             ACTION_SNOOZE -> scope.launch { mutex.withLock { onSnooze() } }
             ACTION_BEGIN_CHALLENGE -> if (occurrenceId != null) {
-                val limit = intent.getLongExtra(EXTRA_TIME_LIMIT, 15_000L)
+                val limit = intent.getLongExtra(EXTRA_TIME_LIMIT, ChallengeConfig.DEFAULT_TIME_LIMIT_MILLIS)
                 scope.launch { mutex.withLock { onBeginChallenge(occurrenceId, limit) } }
             }
             ACTION_CHALLENGE_RESULT -> if (occurrenceId != null) {

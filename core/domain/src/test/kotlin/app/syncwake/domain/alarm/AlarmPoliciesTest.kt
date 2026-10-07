@@ -28,6 +28,17 @@ class AlarmPoliciesTest {
     }
 
     @Test
+    fun wakeProofCheckHappensWithinOneMinute() {
+        assertEquals(Duration.ofMinutes(1), WakeProofPolicy().checkAfter)
+        WakeProofPolicy(checkAfter = Duration.ofSeconds(30)) // allowed
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun wakeProofCheckLaterThanOneMinuteIsRejected() {
+        WakeProofPolicy(checkAfter = Duration.ofSeconds(61))
+    }
+
+    @Test
     fun wakeProofReAlertIsBounded() {
         val policy = WakeProofPolicy(maxReAlerts = 2)
         assertTrue(policy.shouldReAlert(0))

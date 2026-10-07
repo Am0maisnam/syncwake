@@ -61,6 +61,7 @@ import app.syncwake.domain.challenge.BrightnessCurve
 import app.syncwake.domain.challenge.ChallengeCodeGenerator
 import app.syncwake.domain.challenge.ChallengeSession.Outcome
 import app.syncwake.domain.challenge.ChallengeSession.Reason
+import app.syncwake.domain.challenge.EscalationPolicy
 import app.syncwake.domain.state.AlarmState
 import app.syncwake.ring.AlarmRingingService
 import app.syncwake.ring.RingingRegistry
@@ -173,6 +174,7 @@ fun RingScreen(onBrightness: (Float) -> Unit, onFinished: () -> Unit) {
                 )
             },
             onSnooze = { AlarmRingingService.send(context, Intent(AlarmRingingService.ACTION_SNOOZE)) },
+            timeLimitSeconds = EscalationPolicy.configFor(current.challengeFailures, settings.challengeAccessibility).timeLimitMillis / 1000,
         )
     } else {
         LaunchedEffect(c) {
@@ -202,7 +204,7 @@ fun RingScreen(onBrightness: (Float) -> Unit, onFinished: () -> Unit) {
 }
 
 @Composable
-private fun RingingView(ui: RingingUi, onDismiss: () -> Unit, onSnooze: () -> Unit) {
+private fun RingingView(ui: RingingUi, onDismiss: () -> Unit, onSnooze: () -> Unit, timeLimitSeconds: Long) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -233,7 +235,7 @@ private fun RingingView(ui: RingingUi, onDismiss: () -> Unit, onSnooze: () -> Un
         }
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "To stop the alarm, type a 7-character code within 15 seconds.",
+                "To stop the alarm, type a 7-character code within $timeLimitSeconds seconds.",
                 color = SyncWakeColors.Muted,
                 modifier = Modifier.fillMaxWidth(),
             )
