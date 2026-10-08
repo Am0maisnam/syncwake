@@ -61,6 +61,7 @@ import app.syncwake.domain.readiness.ReadinessIssue
 import app.syncwake.domain.readiness.ReadinessReport
 import app.syncwake.notify.Notifications
 import app.syncwake.ui.Formatting
+import app.syncwake.ui.social.FriendsCard
 import app.syncwake.ui.theme.MonoLabel
 import app.syncwake.ui.theme.SyncWakeColors
 import java.time.Instant
@@ -74,12 +75,14 @@ fun HomeScreen(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
+    onOpenStatus: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val graph = remember { Graph.get(context) }
     val scope = rememberCoroutineScope()
     val alarms by graph.repository.observeAlarms().collectAsState(initial = emptyList())
     val next by graph.repository.observeNextUpcoming().collectAsState(initial = null)
+    val shared by graph.social.shared.collectAsState()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     var report by remember { mutableStateOf<ReadinessReport?>(null) }
 
@@ -117,6 +120,7 @@ fun HomeScreen(
             }
             item { NextAlarmHeader(next?.triggerAt) }
             report?.let { r -> item { ReadinessCard(r, hasAlarm = next != null, onFix = { fix(context, it, onRequestNotificationPermission) { scope.launch { graph.coordinator.reconcile() } } }) } }
+            item { FriendsCard() }
             if (alarms.isEmpty()) {
                 item {
                     Text(
@@ -129,8 +133,10 @@ fun HomeScreen(
             items(alarms, key = { it.alarmId }) { alarm ->
                 AlarmRow(
                     alarm = alarm,
+                    sharedWith = shared[alarm.alarmId]?.participantCount,
                     onClick = { onEditAlarm(alarm.alarmId) },
                     onToggle = { enabled -> scope.launch { graph.coordinator.setEnabled(alarm.alarmId, enabled) } },
+                    onOpenStatus = { onOpenStatus(alarm.alarmId) },
                 )
             }
             item { Spacer(Modifier.height(80.dp)) }
@@ -150,7 +156,7 @@ private fun NextAlarmHeader(triggerAt: Long?) {
                 "In " + Formatting.until(now, Instant.ofEpochMilli(triggerAt)),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Text(Formatting.dateTime(triggerAt), color = SyncWakeColors.Muted)
+            Text(Formatting.dateTime(LocalContext.current, triggerAt), color = SyncWakeColors.Muted)
         }
     }
 }
@@ -184,7 +190,13 @@ private fun ReadinessCard(report: ReadinessReport, hasAlarm: Boolean, onFix: (Re
 }
 
 @Composable
-private fun AlarmRow(alarm: AlarmEntity, onClick: () -> Unit, onToggle: (Boolean) -> Unit) {
+private fun AlarmRow(
+    alarm: AlarmEntity,
+    sharedWith: Int?,
+    onClick: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+    onOpenStatus: () -> Unit,
+) {
     val context = LocalContext.current
     val time = Formatting.time(context, LocalTime.of(alarm.hour, alarm.minute))
     val days = Formatting.days(maskToDays(alarm.repeatDaysMask))
@@ -202,6 +214,11 @@ private fun AlarmRow(alarm: AlarmEntity, onClick: () -> Unit, onToggle: (Boolean
         Column(Modifier.weight(1f)) {
             Text(time, style = MaterialTheme.typography.headlineMedium, color = if (alarm.enabled) SyncWakeColors.OnBackground else SyncWakeColors.Muted)
             Text(listOf(alarm.label, days).filter { it.isNotBlank() }.joinToString(" · "), color = SyncWakeColors.Muted)
+            if (sharedWith != null) {
+                TextButton(onClick = onOpenStatus, contentPadding = PaddingValues(0.dp)) {
+                    Text("👥 $sharedWith people · WHO'S UP", style = MonoLabel)
+                }
+            }
         }
         Switch(checked = alarm.enabled, onCheckedChange = onToggle)
     }

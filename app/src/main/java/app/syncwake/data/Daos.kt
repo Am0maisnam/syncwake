@@ -69,4 +69,10 @@ interface EventDao {
 
     @Query("SELECT * FROM occurrence_events WHERE occurrenceId = :occurrenceId ORDER BY elapsedRealtime, at")
     suspend fun eventsFor(occurrenceId: String): List<OccurrenceEventEntity>
+
+    @Query("SELECT * FROM occurrence_events WHERE synced = 0 ORDER BY at, elapsedRealtime LIMIT :limit")
+    suspend fun unsynced(limit: Int): List<OccurrenceEventEntity>
+
+    @Query("UPDATE occurrence_events SET synced = 1 WHERE eventId IN (:eventIds)")
+    suspend fun markSynced(eventIds: List<String>)
 }

@@ -28,6 +28,12 @@ class AlarmPoliciesTest {
     }
 
     @Test
+    fun alarmsRingForTwoMinutesByDefault() {
+        assertEquals(2, RingPolicy().ringDurationMinutes)
+        assertEquals(2, RingPolicy.DEFAULT_RING_MINUTES)
+    }
+
+    @Test
     fun wakeProofCheckHappensWithinOneMinute() {
         assertEquals(Duration.ofMinutes(1), WakeProofPolicy().checkAfter)
         WakeProofPolicy(checkAfter = Duration.ofSeconds(30)) // allowed

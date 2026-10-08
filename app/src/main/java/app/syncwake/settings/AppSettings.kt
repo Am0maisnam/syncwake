@@ -8,12 +8,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** How times are shown in the app. */
+enum class TimeFormat { SYSTEM, H12, H24 }
+
 data class SettingsSnapshot(
     val wakeProofEnabled: Boolean = true,
     val wakeProofReAlert: Boolean = true,
     val extendedChallengeTime: Boolean = false,
     val disableCognitiveEscalation: Boolean = false,
     val reduceBrightnessChanges: Boolean = false,
+    val timeFormat: TimeFormat = TimeFormat.SYSTEM,
 ) {
     val wakeProofPolicy: WakeProofPolicy
         get() = WakeProofPolicy(
@@ -49,6 +53,7 @@ class AppSettings(context: Context) {
             .putBoolean(K_EXT_TIME, next.extendedChallengeTime)
             .putBoolean(K_NO_COGNITIVE, next.disableCognitiveEscalation)
             .putBoolean(K_REDUCE_BRIGHTNESS, next.reduceBrightnessChanges)
+            .putString(K_TIME_FORMAT, next.timeFormat.name)
             .apply()
         _state.value = next
     }
@@ -61,6 +66,8 @@ class AppSettings(context: Context) {
             extendedChallengeTime = prefs.getBoolean(K_EXT_TIME, d.extendedChallengeTime),
             disableCognitiveEscalation = prefs.getBoolean(K_NO_COGNITIVE, d.disableCognitiveEscalation),
             reduceBrightnessChanges = prefs.getBoolean(K_REDUCE_BRIGHTNESS, d.reduceBrightnessChanges),
+            timeFormat = prefs.getString(K_TIME_FORMAT, null)
+                ?.let { name -> TimeFormat.entries.firstOrNull { it.name == name } } ?: d.timeFormat,
         )
     }
 
@@ -70,5 +77,6 @@ class AppSettings(context: Context) {
         const val K_EXT_TIME = "a11y_extended_time"
         const val K_NO_COGNITIVE = "a11y_no_cognitive"
         const val K_REDUCE_BRIGHTNESS = "a11y_reduce_brightness"
+        const val K_TIME_FORMAT = "time_format"
     }
 }

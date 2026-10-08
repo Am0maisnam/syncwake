@@ -46,8 +46,13 @@ object OverduePolicy {
  * How long an alarm rings before it is marked missed. The timeout is paused while a challenge is
  * in progress, so it can never cut off a user who is mid-way through dismissing.
  */
-data class RingPolicy(val ringDurationMinutes: Int = 15) {
+data class RingPolicy(val ringDurationMinutes: Int = DEFAULT_RING_MINUTES) {
     init {
         require(ringDurationMinutes in 1..60)
+    }
+
+    companion object {
+        /** New alarms ring for 2 minutes before being recorded as missed (adjustable per alarm). */
+        const val DEFAULT_RING_MINUTES = 2
     }
 }

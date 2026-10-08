@@ -12,7 +12,7 @@ competition, sleep insights.
 core/domain (pure Kotlin, unit-tested on any JVM)
   alarm/      AlarmSchedule, NextTriggerCalculator, AlarmReconciler, Snooze/Overdue/Ring/WakeProof policies
   state/      AlarmState, AlarmEvent, AlarmStateMachine (explicit transition table)
-  challenge/  code generator, ChallengeSession (20 s timer), EscalationPolicy, BrightnessCurve
+  challenge/  code generator, ChallengeSession (30 s timer), EscalationPolicy, BrightnessCurve
   readiness/  Smart Alarm Preparation rules
 
 app (Android)
@@ -32,7 +32,7 @@ setAlarmClock(trigger, PendingIntent -> AlarmReceiver)
   -> custom/voice sound still playing after 1 minute with no Dismiss -> switch to the built-in tone
      (AlarmSoundEscalation; never mid-challenge; a failed challenge after 1 minute resumes on it)
   -> full-screen intent -> AlarmActivity (over the lock screen)
-  -> Dismiss -> DISMISS_CHALLENGE (audio lowered, not muted; 20 s timer starts now)
+  -> Dismiss -> DISMISS_CHALLENGE (audio lowered, not muted; 30 s timer starts now)
        success -> COMPLETED -> (wake proof check 1 minute later) ... -> CONFIRMED_AWAKE
        failure/timeout/abandon -> CHALLENGE_FAILED -> RINGING (full volume)
 ```
@@ -97,9 +97,9 @@ already handles a revoked or denied `SCHEDULE_EXACT_ALARM`.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Reliability | local scheduling, reboot recovery, offline, alarm UI, state machine, fallback audio | **done (this PR)** |
-| 2 Wake challenge | 7-char generator, 20 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
+| 2 Wake challenge | 7-char generator, 30 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
 | 3a Social backend | Cloudflare Worker + D1 + Durable Objects: Google sign-in, shared alarms, invites, server-enforced group limits, idempotent events, per-user completion, live status, push | **done** |
-| 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | next |
+| 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | **done** (needs the setup in BACKEND_SETUP.md to switch on) |
 | 4 Smart Wake Verification | short post-alarm sensor/interaction monitoring, confidence model, privacy settings | planned |
 | 5 Social engagement | streaks, nudges, reactions, partners, clubs, group progress | planned |
 | 6 Premium competition | entitlement system, Wake-Up Race, medals, history | planned |
@@ -139,7 +139,7 @@ Implemented now (`core/domain` unit tests and `app` Robolectric tests):
 | 1-3 | App closed / locked / offline | by design: AlarmManager + foreground service, no network in the ring path. Device test still needed. |
 | 4 | Reboot before alarm | `AlarmCoordinatorTest.rebootLosesRegistrationAndReconcileRestoresIt`, `AlarmReconcilerTest` |
 | 5 | Challenge success | `ChallengeTest.correctCodeCaseInsensitiveSucceeds` |
-| 6 | 20 s timeout | `ChallengeTest.timeoutAtTwentySecondsFails`, `timerStartsAtDismissNotAtRing` |
+| 6 | 30 s timeout | `ChallengeTest.timeoutAtThirtySecondsFails`, `timerStartsAtDismissNotAtRing` |
 | 7 | Wrong challenge | `ChallengeTest.wrongCharactersAreNotAppendedAndFailAfterLimit` |
 | 8 | Repeated failures | `AlarmStateMachineTest.repeatedFailuresThenSuccess`, `ChallengeTest.escalationIsCappedAndCodeStaysSeven` |
 | 9 | Brightness progression | `ChallengeTest.brightnessIncreasesMonotonicallyToMax` |
@@ -152,3 +152,24 @@ Implemented now (`core/domain` unit tests and `app` Robolectric tests):
 
 Still needed: instrumented/device tests for 1-4, 10 and 32 (haptics and audio need real hardware),
 plus everything from Phase 3 onward.
+
+## 6. Social client (Phase 3b)
+
+- **Shared alarms are ordinary local alarms.** They use the server's alarm id and a fixed time
+  zone (`anchorZone`), so they're scheduled, rung, snoozed and dismissed by exactly the same
+  code as personal alarms, offline included. Schedule fields (time, days, label) follow the
+  server; sound, vibration, snooze and ring length stay personal. Only the owner can change the
+  schedule; the server is updated first, with optimistic versioning.
+- **Outbox.** Every state transition already gets a UUID row in `occurrence_events`. For shared
+  alarms, `SocialRepository.uploadEvents` maps each one to a high-level status
+  (`PublicStatusMapper` in the domain module) and posts it; the server is idempotent, so retries
+  are safe. Personal alarms' events are marked done without leaving the phone.
+- **Triggers.** A transition, app start, a push, or the 15-minute periodic job runs
+  `SocialSyncWorker` (WorkManager, network required). Nothing social runs before the first unlock
+  after a reboot: social state lives in credential-protected storage and is created lazily, so the
+  ringing path never touches it.
+- **Push** is optional. Firebase is initialised from build config, so no
+  `google-services.json` is needed in the repo.
+- **Config.** API URL, Google client ID and Firebase IDs are build-time values (Gradle properties
+  or CI repository variables). Without them the Friends card says it isn't set up, and
+  everything else works.

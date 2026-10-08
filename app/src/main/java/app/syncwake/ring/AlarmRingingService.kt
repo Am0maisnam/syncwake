@@ -19,17 +19,16 @@ import app.syncwake.data.ChallengeAttemptEntity
 import app.syncwake.data.alarmState
 import app.syncwake.data.snoozePolicy
 import app.syncwake.domain.alarm.AlarmSoundEscalation
+import app.syncwake.domain.alarm.RingPolicy
 import app.syncwake.domain.alarm.SnoozePolicy
 import app.syncwake.domain.challenge.ChallengeConfig
 import app.syncwake.domain.state.AlarmEvent
 import app.syncwake.domain.state.AlarmState
 import app.syncwake.domain.state.ChallengeFailureReason
 import app.syncwake.notify.Notifications
+import app.syncwake.ui.Formatting
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -214,8 +213,7 @@ class AlarmRingingService : Service() {
             it.copy(snoozeCount = it.snoozeCount + 1, snoozeUntil = until)
         } ?: return
         graph.scheduler.scheduleRing(head.id, until)
-        val untilText = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-            .format(Instant.ofEpochMilli(until).atZone(ZoneId.systemDefault()))
+        val untilText = Formatting.time(this, until)
         Notifications.showSnoozed(this, head.id, head.label, untilText)
         advance()
     }
@@ -438,7 +436,7 @@ class AlarmRingingService : Service() {
         const val OUTCOME_ABANDONED = "ABANDONED"
 
         private const val CHALLENGE_VOLUME = 0.3f
-        private const val DEFAULT_RING_MILLIS = 15 * 60_000L
+        private const val DEFAULT_RING_MILLIS = RingPolicy.DEFAULT_RING_MINUTES * 60_000L
         private const val MIN_RESUME_RING_MILLIS = 60_000L
         private const val WATCHDOG_GRACE_MILLIS = 5_000L
         private const val WAKE_LOCK_MARGIN_MILLIS = 5 * 60_000L

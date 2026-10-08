@@ -11,6 +11,10 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
 class AlarmRepository(private val db: SyncWakeDatabase) {
+    /** Called after every committed state transition (used to trigger social sync). */
+    @Volatile
+    var onTransition: (() -> Unit)? = null
+
     private val alarms = db.alarmDao()
     private val occurrences = db.occurrenceDao()
     private val events = db.eventDao()
@@ -70,6 +74,19 @@ class AlarmRepository(private val db: SyncWakeDatabase) {
         event: AlarmEvent,
         now: Long,
         mutate: (OccurrenceEntity) -> OccurrenceEntity = { it },
+    ): OccurrenceEntity? = transitionInternal(occurrenceId, event, now, mutate)?.also {
+        try {
+            onTransition?.invoke()
+        } catch (e: Exception) {
+            Log.w(TAG, "onTransition hook failed", e)
+        }
+    }
+
+    private suspend fun transitionInternal(
+        occurrenceId: String,
+        event: AlarmEvent,
+        now: Long,
+        mutate: (OccurrenceEntity) -> OccurrenceEntity,
     ): OccurrenceEntity? = db.withTransaction {
         val current = occurrences.get(occurrenceId) ?: return@withTransaction null
         val from = current.alarmState
@@ -97,6 +114,12 @@ class AlarmRepository(private val db: SyncWakeDatabase) {
     suspend fun recordAttempt(attempt: ChallengeAttemptEntity) = events.insertAttempt(attempt)
 
     suspend fun eventsFor(occurrenceId: String) = events.eventsFor(occurrenceId)
+
+    suspend fun unsyncedEvents(limit: Int): List<OccurrenceEventEntity> = events.unsynced(limit)
+
+    suspend fun markEventsSynced(eventIds: List<String>) {
+        if (eventIds.isNotEmpty()) events.markSynced(eventIds)
+    }
 
     private companion object {
         const val TAG = "AlarmRepository"

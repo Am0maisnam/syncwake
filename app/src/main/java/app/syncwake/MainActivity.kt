@@ -22,7 +22,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import app.syncwake.ui.editor.AlarmEditorScreen
 import app.syncwake.ui.history.HistoryScreen
+import app.syncwake.social.WorkManagerSyncScheduler
 import app.syncwake.ui.home.HomeScreen
+import app.syncwake.ui.social.GroupStatusScreen
 import app.syncwake.ui.settings.SettingsScreen
 import app.syncwake.ui.theme.SyncWakeTheme
 import kotlinx.coroutines.launch
@@ -32,7 +34,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Opening the app is a cheap, safe moment to make sure every alarm is registered.
-        lifecycleScope.launch { Graph.get(this@MainActivity).coordinator.reconcile() }
+        val graph = Graph.get(this)
+        lifecycleScope.launch { graph.coordinator.reconcile() }
+        // ...and to catch up with friends' shared alarms.
+        if (graph.social.config.isConfigured && graph.social.signedIn) {
+            WorkManagerSyncScheduler(this).apply {
+                schedulePeriodic()
+                requestNow()
+            }
+        }
 
         setContent {
             SyncWakeTheme {
@@ -50,7 +60,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // route: "home" | "new" | "edit:<alarmId>" | "history" | "settings"
+                // route: "home" | "new" | "edit:<alarmId>" | "status:<alarmId>" | "history" | "settings"
                 var route by rememberSaveable { mutableStateOf("home") }
                 Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                     when {
@@ -60,9 +70,15 @@ class MainActivity : ComponentActivity() {
                             onOpenHistory = { route = "history" },
                             onOpenSettings = { route = "settings" },
                             onRequestNotificationPermission = requestNotifications,
+                            onOpenStatus = { route = "status:$it" },
                         )
                         route == "new" -> AlarmEditorScreen(alarmId = null, onDone = { route = "home" })
-                        route.startsWith("edit:") -> AlarmEditorScreen(alarmId = route.removePrefix("edit:"), onDone = { route = "home" })
+                        route.startsWith("edit:") -> AlarmEditorScreen(
+                            alarmId = route.removePrefix("edit:"),
+                            onDone = { route = "home" },
+                            onOpenStatus = { route = "status:$it" },
+                        )
+                        route.startsWith("status:") -> GroupStatusScreen(alarmId = route.removePrefix("status:"), onBack = { route = "home" })
                         route == "history" -> HistoryScreen(onBack = { route = "home" })
                         route == "settings" -> SettingsScreen(onBack = { route = "home" })
                     }

@@ -5,7 +5,6 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,6 +63,13 @@ import app.syncwake.data.daysToMask
 import app.syncwake.data.maskToDays
 import app.syncwake.domain.alarm.ALARM_LABEL_MAX_LENGTH
 import app.syncwake.domain.alarm.NextTriggerCalculator
+import app.syncwake.domain.alarm.RingPolicy
+import app.syncwake.ui.Formatting
+import app.syncwake.ui.social.SharedAlarmSection
+import app.syncwake.ui.social.ShareToggle
+import app.syncwake.ui.social.socialErrorMessage
+import android.widget.Toast
+import androidx.compose.runtime.collectAsState
 import app.syncwake.ui.theme.MonoLabel
 import app.syncwake.ui.theme.SyncWakeColors
 import java.time.DayOfWeek
@@ -76,11 +82,13 @@ import java.util.UUID
 import kotlinx.coroutines.launch
 
 @Composable
-fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
+fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit, onOpenStatus: (String) -> Unit = {}) {
     val context = LocalContext.current
     val graph = remember { Graph.get(context) }
+    val social = graph.social
+    val sharedMap by social.shared.collectAsState()
     val scope = rememberCoroutineScope()
-    val is24h = remember { DateFormat.is24HourFormat(context) }
+    val is24h = remember { Formatting.is24Hour(context) }
 
     var loaded by remember { mutableStateOf(alarmId == null) }
     var existing by remember { mutableStateOf<AlarmEntity?>(null) }
@@ -92,7 +100,9 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
     var soundUri by remember { mutableStateOf<String?>(null) }
     var snoozeMinutes by remember { mutableIntStateOf(9) }
     var maxSnoozes by remember { mutableIntStateOf(3) }
-    var ringMinutes by remember { mutableIntStateOf(15) }
+    var ringMinutes by remember { mutableIntStateOf(RingPolicy.DEFAULT_RING_MINUTES) }
+    var shareWithFriends by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
 
     LaunchedEffect(alarmId) {
         if (alarmId != null) {
@@ -120,10 +130,13 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
 
     BackHandler(onBack = onDone)
     if (!loaded) return
+    val sharedInfo = existing?.let { sharedMap[it.alarmId] }
+    // Members of a shared alarm can't change its schedule; only their own sound/snooze settings.
+    val scheduleEditable = sharedInfo == null || sharedInfo.isOwner
 
     fun save() {
         val now = Instant.now()
-        val zone = ZoneId.systemDefault()
+        val zone = existing?.anchorZone?.let(ZoneId::of) ?: ZoneId.systemDefault()
         val time = LocalTime.of(hour, minute)
         val alarm = AlarmEntity(
             localId = existing?.localId ?: 0,
@@ -133,7 +146,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
             minute = minute,
             repeatDaysMask = daysToMask(days),
             oneTimeDate = if (days.isEmpty()) NextTriggerCalculator.defaultOneTimeDate(time, now, zone).toString() else null,
-            anchorZone = null,
+            anchorZone = existing?.anchorZone,
             enabled = true,
             vibrate = vibrate,
             soundUri = soundUri,
@@ -143,9 +156,23 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
             createdAt = existing?.createdAt ?: now.toEpochMilli(),
             updatedAt = now.toEpochMilli(),
         )
+        val previous = existing
+        val scheduleChanged = previous == null || previous.hour != alarm.hour || previous.minute != alarm.minute ||
+            previous.repeatDaysMask != alarm.repeatDaysMask || previous.label != alarm.label
+        busy = true
         scope.launch {
-            graph.coordinator.saveAlarm(alarm)
-            onDone()
+            try {
+                when {
+                    previous == null && shareWithFriends -> social.createShared(alarm)
+                    sharedInfo?.isOwner == true && scheduleChanged -> social.updateShared(alarm)
+                    else -> graph.coordinator.saveAlarm(alarm)
+                }
+                onDone()
+            } catch (e: Exception) {
+                socialErrorMessage(e)?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+            } finally {
+                busy = false
+            }
         }
     }
 
@@ -163,7 +190,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
         }
 
         TimeSelector(
-            hour = hour, minute = minute, is24h = is24h,
+            hour = hour, minute = minute, is24h = is24h, enabled = scheduleEditable,
             onHour = { hour = it }, onMinute = { minute = it },
         )
 
@@ -171,6 +198,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it.take(ALARM_LABEL_MAX_LENGTH) },
+                enabled = scheduleEditable,
                 placeholder = { Text("Sunrise Workout & Gym") },
                 singleLine = true,
                 supportingText = { Text("${label.length}/$ALARM_LABEL_MAX_LENGTH", style = MonoLabel) },
@@ -188,7 +216,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
                             .weight(1f)
                             .height(48.dp)
                             .background(if (selected) SyncWakeColors.Accent else SyncWakeColors.SurfaceHigh, RoundedCornerShape(10.dp))
-                            .toggleable(value = selected, role = Role.Checkbox, onValueChange = {
+                            .toggleable(value = selected, enabled = scheduleEditable, role = Role.Checkbox, onValueChange = {
                                 days = if (it) days + day else days - day
                             })
                             .semantics { contentDescription = name },
@@ -207,6 +235,13 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
                 color = SyncWakeColors.Muted,
                 modifier = Modifier.padding(top = 6.dp),
             )
+        }
+
+        val current = existing
+        if (current != null && sharedInfo != null) {
+            SharedAlarmSection(current.alarmId, sharedInfo.isOwner, onOpenStatus = { onOpenStatus(current.alarmId) })
+        } else if (current == null) {
+            ShareToggle(shareWithFriends) { shareWithFriends = it }
         }
 
         Section("SOUND") {
@@ -242,24 +277,39 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
 
         Button(
             onClick = ::save,
+            enabled = !busy,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = SyncWakeColors.Accent, contentColor = MaterialTheme.colorScheme.onPrimary),
-        ) { Text("SAVE ALARM", style = MaterialTheme.typography.titleMedium) }
+        ) { Text(if (busy) "SAVING…" else "SAVE ALARM", style = MaterialTheme.typography.titleMedium) }
 
         existing?.let { alarm ->
+            val deleteLabel = when {
+                sharedInfo == null -> "DELETE ALARM"
+                sharedInfo.isOwner -> "DELETE FOR EVERYONE"
+                else -> "LEAVE ALARM"
+            }
             OutlinedButton(
-                onClick = { scope.launch { graph.coordinator.deleteAlarm(alarm.alarmId); onDone() } },
+                onClick = {
+                    scope.launch {
+                        try {
+                            if (sharedInfo != null) social.deleteOrLeave(alarm.alarmId) else graph.coordinator.deleteAlarm(alarm.alarmId)
+                            onDone()
+                        } catch (e: Exception) {
+                            socialErrorMessage(e)?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 border = BorderStroke(1.dp, SyncWakeColors.Error),
-            ) { Text("DELETE ALARM", color = SyncWakeColors.Error) }
+            ) { Text(deleteLabel, color = SyncWakeColors.Error) }
         }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun TimeSelector(hour: Int, minute: Int, is24h: Boolean, onHour: (Int) -> Unit, onMinute: (Int) -> Unit) {
+private fun TimeSelector(hour: Int, minute: Int, is24h: Boolean, enabled: Boolean, onHour: (Int) -> Unit, onMinute: (Int) -> Unit) {
     val displayHour = if (is24h) hour else ((hour + 11) % 12) + 1
     val pm = hour >= 12
     Column(
@@ -275,6 +325,7 @@ private fun TimeSelector(hour: Int, minute: Int, is24h: Boolean, onHour: (Int) -
             Spinner(
                 value = "%02d".format(displayHour),
                 description = "Hour",
+                enabled = enabled,
                 onUp = { onHour((hour + 1) % 24) },
                 onDown = { onHour((hour + 23) % 24) },
             )
@@ -282,13 +333,14 @@ private fun TimeSelector(hour: Int, minute: Int, is24h: Boolean, onHour: (Int) -
             Spinner(
                 value = "%02d".format(minute),
                 description = "Minute",
+                enabled = enabled,
                 onUp = { onMinute((minute + 1) % 60) },
                 onDown = { onMinute((minute + 59) % 60) },
             )
             if (!is24h) {
                 Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AmPm("AM", selected = !pm) { if (pm) onHour(hour - 12) }
-                    AmPm("PM", selected = pm) { if (!pm) onHour(hour + 12) }
+                    AmPm("AM", selected = !pm, enabled = enabled) { if (pm) onHour(hour - 12) }
+                    AmPm("PM", selected = pm, enabled = enabled) { if (!pm) onHour(hour + 12) }
                 }
             }
         }
@@ -296,9 +348,9 @@ private fun TimeSelector(hour: Int, minute: Int, is24h: Boolean, onHour: (Int) -
 }
 
 @Composable
-private fun Spinner(value: String, description: String, onUp: () -> Unit, onDown: () -> Unit) {
+private fun Spinner(value: String, description: String, enabled: Boolean, onUp: () -> Unit, onDown: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onUp, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onUp, enabled = enabled, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Increase $description")
         }
         Text(
@@ -306,20 +358,20 @@ private fun Spinner(value: String, description: String, onUp: () -> Unit, onDown
             style = MaterialTheme.typography.displayLarge,
             modifier = Modifier.semantics { contentDescription = "$description $value" },
         )
-        IconButton(onClick = onDown, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onDown, enabled = enabled, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Decrease $description")
         }
     }
 }
 
 @Composable
-private fun AmPm(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun AmPm(text: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .width(56.dp)
             .height(44.dp)
             .background(if (selected) SyncWakeColors.Accent else SyncWakeColors.SurfaceHigh, RoundedCornerShape(6.dp))
-            .toggleable(value = selected, role = Role.RadioButton, onValueChange = { onClick() })
+            .toggleable(value = selected, enabled = enabled, role = Role.RadioButton, onValueChange = { onClick() })
             .semantics { stateDescription = if (selected) "Selected" else "Not selected" },
         contentAlignment = Alignment.Center,
     ) {

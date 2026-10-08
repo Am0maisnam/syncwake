@@ -41,25 +41,25 @@ class ChallengeTest {
 
     @Test
     fun timerStartsAtDismissNotAtRing() {
-        // The alarm may have rung for minutes; the session started at t=600_000 still has 20s.
+        // The alarm may have rung for minutes; the session started at t=600_000 still has 30s.
         val s = session(start = 600_000)
-        assertEquals(20_000, s.remainingMillis(600_000))
-        assertEquals(1_000, s.remainingMillis(619_000))
+        assertEquals(30_000, s.remainingMillis(600_000))
+        assertEquals(1_000, s.remainingMillis(629_000))
     }
 
     @Test
-    fun timeoutAtTwentySecondsFails() {
+    fun timeoutAtThirtySecondsFails() {
         val s = session(start = 0)
-        assertNull(s.checkTimeout(19_999))
-        assertEquals(Outcome.Failed(Reason.TIMED_OUT), s.checkTimeout(20_000))
-        assertEquals(Outcome.Ignored, s.enter('K', 20_001))
+        assertNull(s.checkTimeout(29_999))
+        assertEquals(Outcome.Failed(Reason.TIMED_OUT), s.checkTimeout(30_000))
+        assertEquals(Outcome.Ignored, s.enter('K', 30_001))
     }
 
     @Test
     fun lateCharacterAfterExpiryFails() {
         val s = session(start = 0)
         "K7MHR9".forEachIndexed { i, ch -> s.enter(ch, i * 100L) }
-        assertEquals(Outcome.Failed(Reason.TIMED_OUT), s.enter('X', 20_000))
+        assertEquals(Outcome.Failed(Reason.TIMED_OUT), s.enter('X', 30_000))
     }
 
     @Test
@@ -104,7 +104,7 @@ class ChallengeTest {
         for (failures in 0..50) {
             val config = EscalationPolicy.configFor(failures)
             assertEquals(7, config.codeLength)
-            assertEquals(20_000, config.timeLimitMillis)
+            assertEquals(30_000, config.timeLimitMillis)
             assertTrue(config.escalationLevel <= 1)
         }
         assertFalse(EscalationPolicy.configFor(2).arithmeticStep)
@@ -114,10 +114,10 @@ class ChallengeTest {
     fun accessibilityExtendsTimeAndDisablesCognitiveStep() {
         val a11y = ChallengeAccessibility(timeMultiplier = 2.0, disableCognitiveEscalation = true)
         val config = EscalationPolicy.configFor(10, a11y)
-        assertEquals(40_000, config.timeLimitMillis)
+        assertEquals(60_000, config.timeLimitMillis)
         assertFalse(config.arithmeticStep)
         // Multiplier is clamped: it can never shorten the limit.
-        assertEquals(20_000, EscalationPolicy.configFor(0, ChallengeAccessibility(timeMultiplier = 0.1)).timeLimitMillis)
+        assertEquals(30_000, EscalationPolicy.configFor(0, ChallengeAccessibility(timeMultiplier = 0.1)).timeLimitMillis)
     }
 
     @Test
