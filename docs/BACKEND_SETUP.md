@@ -29,23 +29,44 @@ or commit them to the repo.
 3. Credentials → Create credentials → OAuth client ID:
    - **Web application** (name "SyncWake server"). Copy its **Client ID**. This is what the
      server checks and what the Android app sends as `serverClientId`.
-   - **Android**: package `app.syncwake`, plus the SHA-1 of your signing key
-     (debug: `./gradlew :app:signingReport`). No value to copy; it just authorises the app.
+   - **Android**: package `app.syncwake`, SHA-1
+     `9B:D6:80:55:D9:2B:D7:58:98:68:09:2D:83:DC:F8:1F:C1:5C:F3:F7`
+     (the committed debug key `app/debug.keystore`, used by every debug build including CI).
+     No value to copy; it just authorises the app. A Play release will need a second Android
+     client with the release key's SHA-1.
 4. Put the Web client ID in `backend/wrangler.jsonc` → `vars.GOOGLE_CLIENT_IDS` and commit it
    (client IDs are not secret). Send it to me too: the Android app needs it in Phase 3b.
 
 ## 3. Firebase Cloud Messaging (push)
 
 1. https://console.firebase.google.com → Add project → choose the same Google Cloud project.
-2. Add an Android app with package `app.syncwake`. Download `google-services.json`.
-   It goes in `app/` for Phase 3b. It contains API keys that are restricted to your app, but keep
-   the repository private if you commit it, or add it as a CI secret instead (I'll set that up).
+2. Add an Android app with package `app.syncwake` (SHA-1 as above). You don't need to add
+   `google-services.json` to the repo; the four values below are read from it instead.
 3. Project settings → Service accounts → Generate new private key → a JSON file downloads.
    **This one is secret.** Store it only as a Worker secret:
    `cd backend && npx wrangler secret put FCM_SERVICE_ACCOUNT` and paste the whole JSON.
    Without it the API still works; it just doesn't send push notifications.
 
-## 4. Check it
+## 4. Connect the app
+
+GitHub → repo Settings → Secrets and variables → Actions → **Variables** tab → New repository
+variable, for each of these (none are secret):
+
+| Variable | Where to find it |
+|---|---|
+| `SYNCWAKE_API_URL` | Your Worker URL, e.g. `https://syncwake-api.<subdomain>.workers.dev` |
+| `SYNCWAKE_GOOGLE_SERVER_CLIENT_ID` | The **Web** OAuth client ID from step 2 |
+| `SYNCWAKE_FIREBASE_APP_ID` | `google-services.json` → `client[0].client_info.mobilesdk_app_id` |
+| `SYNCWAKE_FIREBASE_API_KEY` | `google-services.json` → `client[0].api_key[0].current_key` |
+| `SYNCWAKE_FIREBASE_PROJECT_ID` | `google-services.json` → `project_info.project_id` |
+| `SYNCWAKE_FIREBASE_SENDER_ID` | `google-services.json` → `project_info.project_number` |
+
+The next build of `main` (or re-run the latest CI run) produces an APK with Friends switched on.
+For local builds, put the same values in `~/.gradle/gradle.properties` as
+`syncwake.apiUrl`, `syncwake.googleServerClientId`, `syncwake.firebaseAppId`,
+`syncwake.firebaseApiKey`, `syncwake.firebaseProjectId`, `syncwake.firebaseSenderId`.
+
+## 5. Check it
 
 `curl https://syncwake-api.<your-subdomain>.workers.dev/health` → `{"ok":true}`.
 

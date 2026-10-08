@@ -99,7 +99,7 @@ already handles a revoked or denied `SCHEDULE_EXACT_ALARM`.
 | 1 Reliability | local scheduling, reboot recovery, offline, alarm UI, state machine, fallback audio | **done (this PR)** |
 | 2 Wake challenge | 7-char generator, 30 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
 | 3a Social backend | Cloudflare Worker + D1 + Durable Objects: Google sign-in, shared alarms, invites, server-enforced group limits, idempotent events, per-user completion, live status, push | **done** |
-| 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | next |
+| 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | **done** (needs the setup in BACKEND_SETUP.md to switch on) |
 | 4 Smart Wake Verification | short post-alarm sensor/interaction monitoring, confidence model, privacy settings | planned |
 | 5 Social engagement | streaks, nudges, reactions, partners, clubs, group progress | planned |
 | 6 Premium competition | entitlement system, Wake-Up Race, medals, history | planned |
@@ -152,3 +152,24 @@ Implemented now (`core/domain` unit tests and `app` Robolectric tests):
 
 Still needed: instrumented/device tests for 1-4, 10 and 32 (haptics and audio need real hardware),
 plus everything from Phase 3 onward.
+
+## 6. Social client (Phase 3b)
+
+- **Shared alarms are ordinary local alarms.** They use the server's alarm id and a fixed time
+  zone (`anchorZone`), so they're scheduled, rung, snoozed and dismissed by exactly the same
+  code as personal alarms, offline included. Schedule fields (time, days, label) follow the
+  server; sound, vibration, snooze and ring length stay personal. Only the owner can change the
+  schedule; the server is updated first, with optimistic versioning.
+- **Outbox.** Every state transition already gets a UUID row in `occurrence_events`. For shared
+  alarms, `SocialRepository.uploadEvents` maps each one to a high-level status
+  (`PublicStatusMapper` in the domain module) and posts it; the server is idempotent, so retries
+  are safe. Personal alarms' events are marked done without leaving the phone.
+- **Triggers.** A transition, app start, a push, or the 15-minute periodic job runs
+  `SocialSyncWorker` (WorkManager, network required). Nothing social runs before the first unlock
+  after a reboot: social state lives in credential-protected storage and is created lazily, so the
+  ringing path never touches it.
+- **Push** is optional. Firebase is initialised from build config, so no
+  `google-services.json` is needed in the repo.
+- **Config.** API URL, Google client ID and Firebase IDs are build-time values (Gradle properties
+  or CI repository variables). Without them the Friends card says it isn't set up, and
+  everything else works.
