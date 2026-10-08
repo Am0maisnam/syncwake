@@ -2,6 +2,10 @@
 
 ## 1. Get the app onto the phone
 
+**Easiest — direct link (no GitHub login needed)**
+https://github.com/Am0maisnam/syncwake/releases/download/latest-debug/syncwake-debug.apk
+always holds the latest build of `main`. Open it on the phone, then install as in step 3 below.
+
 **Option A — no tools needed (download the APK from CI)**
 1. On GitHub open **Actions → CI**, pick the latest green run on `main`.
 2. Under **Artifacts**, download `syncwake-debug-apk` (a zip) and unzip it to get `app-debug.apk`.
