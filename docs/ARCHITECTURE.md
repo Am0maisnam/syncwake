@@ -12,7 +12,7 @@ competition, sleep insights.
 core/domain (pure Kotlin, unit-tested on any JVM)
   alarm/      AlarmSchedule, NextTriggerCalculator, AlarmReconciler, Snooze/Overdue/Ring/WakeProof policies
   state/      AlarmState, AlarmEvent, AlarmStateMachine (explicit transition table)
-  challenge/  code generator, ChallengeSession (20 s timer), EscalationPolicy, BrightnessCurve
+  challenge/  code generator, ChallengeSession (30 s timer), EscalationPolicy, BrightnessCurve
   readiness/  Smart Alarm Preparation rules
 
 app (Android)
@@ -32,7 +32,7 @@ setAlarmClock(trigger, PendingIntent -> AlarmReceiver)
   -> custom/voice sound still playing after 1 minute with no Dismiss -> switch to the built-in tone
      (AlarmSoundEscalation; never mid-challenge; a failed challenge after 1 minute resumes on it)
   -> full-screen intent -> AlarmActivity (over the lock screen)
-  -> Dismiss -> DISMISS_CHALLENGE (audio lowered, not muted; 20 s timer starts now)
+  -> Dismiss -> DISMISS_CHALLENGE (audio lowered, not muted; 30 s timer starts now)
        success -> COMPLETED -> (wake proof check 1 minute later) ... -> CONFIRMED_AWAKE
        failure/timeout/abandon -> CHALLENGE_FAILED -> RINGING (full volume)
 ```
@@ -97,7 +97,7 @@ already handles a revoked or denied `SCHEDULE_EXACT_ALARM`.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Reliability | local scheduling, reboot recovery, offline, alarm UI, state machine, fallback audio | **done (this PR)** |
-| 2 Wake challenge | 7-char generator, 20 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
+| 2 Wake challenge | 7-char generator, 30 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
 | 3a Social backend | Cloudflare Worker + D1 + Durable Objects: Google sign-in, shared alarms, invites, server-enforced group limits, idempotent events, per-user completion, live status, push | **done** |
 | 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | next |
 | 4 Smart Wake Verification | short post-alarm sensor/interaction monitoring, confidence model, privacy settings | planned |
@@ -139,7 +139,7 @@ Implemented now (`core/domain` unit tests and `app` Robolectric tests):
 | 1-3 | App closed / locked / offline | by design: AlarmManager + foreground service, no network in the ring path. Device test still needed. |
 | 4 | Reboot before alarm | `AlarmCoordinatorTest.rebootLosesRegistrationAndReconcileRestoresIt`, `AlarmReconcilerTest` |
 | 5 | Challenge success | `ChallengeTest.correctCodeCaseInsensitiveSucceeds` |
-| 6 | 20 s timeout | `ChallengeTest.timeoutAtTwentySecondsFails`, `timerStartsAtDismissNotAtRing` |
+| 6 | 30 s timeout | `ChallengeTest.timeoutAtThirtySecondsFails`, `timerStartsAtDismissNotAtRing` |
 | 7 | Wrong challenge | `ChallengeTest.wrongCharactersAreNotAppendedAndFailAfterLimit` |
 | 8 | Repeated failures | `AlarmStateMachineTest.repeatedFailuresThenSuccess`, `ChallengeTest.escalationIsCappedAndCodeStaysSeven` |
 | 9 | Brightness progression | `ChallengeTest.brightnessIncreasesMonotonicallyToMax` |

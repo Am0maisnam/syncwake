@@ -5,7 +5,6 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,6 +63,8 @@ import app.syncwake.data.daysToMask
 import app.syncwake.data.maskToDays
 import app.syncwake.domain.alarm.ALARM_LABEL_MAX_LENGTH
 import app.syncwake.domain.alarm.NextTriggerCalculator
+import app.syncwake.domain.alarm.RingPolicy
+import app.syncwake.ui.Formatting
 import app.syncwake.ui.theme.MonoLabel
 import app.syncwake.ui.theme.SyncWakeColors
 import java.time.DayOfWeek
@@ -80,7 +81,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
     val context = LocalContext.current
     val graph = remember { Graph.get(context) }
     val scope = rememberCoroutineScope()
-    val is24h = remember { DateFormat.is24HourFormat(context) }
+    val is24h = remember { Formatting.is24Hour(context) }
 
     var loaded by remember { mutableStateOf(alarmId == null) }
     var existing by remember { mutableStateOf<AlarmEntity?>(null) }
@@ -92,7 +93,7 @@ fun AlarmEditorScreen(alarmId: String?, onDone: () -> Unit) {
     var soundUri by remember { mutableStateOf<String?>(null) }
     var snoozeMinutes by remember { mutableIntStateOf(9) }
     var maxSnoozes by remember { mutableIntStateOf(3) }
-    var ringMinutes by remember { mutableIntStateOf(15) }
+    var ringMinutes by remember { mutableIntStateOf(RingPolicy.DEFAULT_RING_MINUTES) }
 
     LaunchedEffect(alarmId) {
         if (alarmId != null) {

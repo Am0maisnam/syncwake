@@ -81,7 +81,7 @@ private fun HistoryRow(o: OccurrenceEntity) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(o.alarmLabel.ifBlank { "Alarm" }, style = MaterialTheme.typography.titleMedium)
-            Text(Formatting.dateTime(o.triggerAt), color = SyncWakeColors.Muted)
+            Text(Formatting.dateTime(LocalContext.current, o.triggerAt), color = SyncWakeColors.Muted)
             o.completedAt?.let { done ->
                 val seconds = Duration.ofMillis(done - (o.lastFiredAt ?: o.triggerAt)).seconds.coerceAtLeast(0)
                 Text("Completed after ${seconds / 60}m ${seconds % 60}s · ${o.challengeFailures} failed attempt(s)", color = SyncWakeColors.Muted)

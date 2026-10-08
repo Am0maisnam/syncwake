@@ -13,14 +13,16 @@ Verification, Premium and the backend come in later phases.
   away, offline, and after reboot (including before the first unlock, via Direct Boot)
 - Re-scheduling on reboot, app update, clock change, time-zone change and exact-alarm permission grant
 - Late-ring / missed detection when the phone was off at alarm time
-- Snooze with limits, ring timeout -> missed, alarm history (last 7 days)
+- Snooze with limits; alarms ring for 2 minutes by default (adjustable per alarm) before being
+  recorded as missed; alarm history (last 7 days)
+- 12-hour or 24-hour clock (Settings), or follow the phone
 - Bundled fallback alarm sound; custom sound -> bundled -> system default chain, so a broken
   custom sound never produces a silent alarm
 - Custom (and, later, voice) alarm sounds play for the first minute only: if you haven't started
   dismissing by then, the built-in alarm tone takes over for the rest of that ring
-- Dismissal challenge: 7 random unambiguous characters, case-insensitive, 20 seconds starting
+- Dismissal challenge: 7 random unambiguous characters, case-insensitive, 30 seconds starting
   when you press Dismiss, progressive window brightness, haptics, capped escalation (a simple
-  sum after 3 failures), accessibility options (40-second time, no extra steps, no brightness changes)
+  sum after 3 failures), accessibility options (60-second time, no extra steps, no brightness changes)
 - Wake-Up Proof ("Still awake? 👀") 1 minute after completing the challenge, with optional,
   bounded re-alert if ignored
 - Smart Alarm Preparation: "Your next alarm is ready ✓", or a specific explanation and a FIX button

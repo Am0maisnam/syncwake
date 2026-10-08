@@ -150,7 +150,7 @@ private fun NextAlarmHeader(triggerAt: Long?) {
                 "In " + Formatting.until(now, Instant.ofEpochMilli(triggerAt)),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Text(Formatting.dateTime(triggerAt), color = SyncWakeColors.Muted)
+            Text(Formatting.dateTime(LocalContext.current, triggerAt), color = SyncWakeColors.Muted)
         }
     }
 }

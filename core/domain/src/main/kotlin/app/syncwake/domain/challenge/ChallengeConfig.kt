@@ -17,13 +17,13 @@ data class ChallengeConfig(
     val escalationLevel: Int = 0,
 ) {
     companion object {
-        const val DEFAULT_TIME_LIMIT_MILLIS = 20_000L
+        const val DEFAULT_TIME_LIMIT_MILLIS = 30_000L
     }
 }
 
 /** User-controlled accommodations. */
 data class ChallengeAccessibility(
-    /** Multiplies the time limit (e.g. 2.0 doubles 20s to 40s). Clamped to 1.0..4.0. */
+    /** Multiplies the time limit (e.g. 2.0 doubles 30s to 60s). Clamped to 1.0..4.0. */
     val timeMultiplier: Double = 1.0,
     /** Never add the arithmetic step, however many attempts fail. */
     val disableCognitiveEscalation: Boolean = false,

@@ -41,7 +41,7 @@ brands (Samsung, Xiaomi/Redmi, OnePlus, Pixel) and Android versions.
 | 7 | Phone off through alarm time, turn on within 15 min | Rings late |
 | 8 | Same, but turn on after 15+ min | "Missed alarm" notification, history shows Missed |
 | 9 | Dismiss → type the code correctly | Brightness rises per character, haptic ticks, alarm stops |
-| 10 | Dismiss → wait 20 s | Alarm returns to full volume; a new code next time |
+| 10 | Dismiss → wait 30 s | Alarm returns to full volume; a new code next time |
 | 11 | Type 3 wrong characters | Fails, alarm resumes |
 | 12 | Fail 3 times | 4th attempt adds a simple sum |
 | 13 | Press back / home during the challenge | Alarm keeps ringing |

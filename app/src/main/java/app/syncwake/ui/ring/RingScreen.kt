@@ -66,10 +66,10 @@ import app.syncwake.domain.state.AlarmState
 import app.syncwake.ring.AlarmRingingService
 import app.syncwake.ring.RingingRegistry
 import app.syncwake.ring.RingingUi
+import app.syncwake.ui.Formatting
 import app.syncwake.ui.theme.MonoLabel
 import app.syncwake.ui.theme.SyncWakeColors
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
 @Composable
@@ -220,7 +220,7 @@ private fun RingingView(ui: RingingUi, onDismiss: () -> Unit, onSnooze: () -> Un
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(48.dp))
             Text("ALARM", style = MonoLabel, color = SyncWakeColors.Muted)
-            Text(now.format(DateTimeFormatter.ofPattern("HH:mm")), style = MaterialTheme.typography.displayLarge)
+            Text(Formatting.time(LocalContext.current, now), style = MaterialTheme.typography.displayLarge)
             Text(ui.label.ifBlank { "Wake up" }, style = MaterialTheme.typography.headlineMedium)
             if (ui.challengeFailures > 0) {
                 Text(
