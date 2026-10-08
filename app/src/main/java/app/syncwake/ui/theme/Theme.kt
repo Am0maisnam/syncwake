@@ -1,9 +1,11 @@
 package app.syncwake.ui.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -55,5 +57,9 @@ private val typography = Typography(
 
 @Composable
 fun SyncWakeTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = colors, typography = typography, content = content)
+    MaterialTheme(colorScheme = colors, typography = typography) {
+        // Text and icons without an explicit colour use LocalContentColor, which defaults to
+        // black. Only Scaffold/Surface override it, so set it here for every screen.
+        CompositionLocalProvider(LocalContentColor provides SyncWakeColors.OnBackground, content = content)
+    }
 }
