@@ -18,10 +18,10 @@ Verification, Premium and the backend come in later phases.
   custom sound never produces a silent alarm
 - Custom (and, later, voice) alarm sounds play for the first minute only: if you haven't started
   dismissing by then, the built-in alarm tone takes over for the rest of that ring
-- Dismissal challenge: 7 random unambiguous characters, case-insensitive, 15 seconds starting
+- Dismissal challenge: 7 random unambiguous characters, case-insensitive, 20 seconds starting
   when you press Dismiss, progressive window brightness, haptics, capped escalation (a simple
-  sum after 3 failures), accessibility options (30-second time, no extra steps, no brightness changes)
-- Wake-Up Proof ("Still awake? 👀") a few minutes after completing the challenge, with optional,
+  sum after 3 failures), accessibility options (40-second time, no extra steps, no brightness changes)
+- Wake-Up Proof ("Still awake? 👀") 1 minute after completing the challenge, with optional,
   bounded re-alert if ignored
 - Smart Alarm Preparation: "Your next alarm is ready ✓", or a specific explanation and a FIX button
 

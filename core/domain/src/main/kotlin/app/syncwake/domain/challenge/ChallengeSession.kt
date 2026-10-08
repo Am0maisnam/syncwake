@@ -1,7 +1,7 @@
 package app.syncwake.domain.challenge
 
 /**
- * One attempt at the dismissal challenge. The timer starts at construction, which happens when
+ * One attempt at the dismissal challenge (20 seconds by default). The timer starts at construction, which happens when
  * the user presses Dismiss; the time spent ringing beforehand does not count.
  *
  * Input is validated per character and case-insensitively. A wrong character is not appended; it
