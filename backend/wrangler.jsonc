@@ -1,0 +1,28 @@
+{
+  // SyncWake API. See docs/BACKEND_SETUP.md for first-time setup.
+  "name": "syncwake-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "syncwake",
+      // Replace with the id printed by `npx wrangler d1 create syncwake`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "ALARM_ROOM", "class_name": "AlarmRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AlarmRoom"] }],
+  "vars": {
+    // Comma-separated OAuth client IDs whose Google ID tokens are accepted (the Web client ID
+    // used as serverClientId on Android).
+    "GOOGLE_CLIENT_IDS": "",
+    "INVITE_BASE_URL": "https://syncwake.app/invite/"
+  }
+  // Secrets (set with `npx wrangler secret put <NAME>`):
+  //   FCM_SERVICE_ACCOUNT  JSON key of a Firebase service account (push notifications)
+}

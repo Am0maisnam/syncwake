@@ -98,7 +98,8 @@ already handles a revoked or denied `SCHEDULE_EXACT_ALARM`.
 |---|---|---|
 | 1 Reliability | local scheduling, reboot recovery, offline, alarm UI, state machine, fallback audio | **done (this PR)** |
 | 2 Wake challenge | 7-char generator, 20 s timer, brightness, haptics, attempts, escalation | **done (this PR)** |
-| 3 Social alarm | accounts, backend, invitations, participants, per-user completion, live status, event sync | next |
+| 3a Social backend | Cloudflare Worker + D1 + Durable Objects: Google sign-in, shared alarms, invites, server-enforced group limits, idempotent events, per-user completion, live status, push | **done** |
+| 3b Social client | Android sign-in, shared alarms scheduled locally, event outbox sync, friend status UI, FCM | next |
 | 4 Smart Wake Verification | short post-alarm sensor/interaction monitoring, confidence model, privacy settings | planned |
 | 5 Social engagement | streaks, nudges, reactions, partners, clubs, group progress | planned |
 | 6 Premium competition | entitlement system, Wake-Up Race, medals, history | planned |
@@ -106,12 +107,28 @@ already handles a revoked or denied `SCHEDULE_EXACT_ALARM`.
 | 8 Premium audio | voice recording, upload, assignment, caching, fallback | planned |
 | 9 Recaps and polish | weekly recap, advanced stats, accessibility pass, performance | planned |
 
-### Proposed backend (Phase 3, not yet built)
-Cloudflare Workers + D1 (normalized schema per spec §69, migrations), Durable Objects for
-per-group live status over WebSockets, FCM for push, Google Play Billing with server-side
-verification (RTDN) for server-authoritative entitlements. The client syncs the
-`occurrence_events` table as an idempotent outbox (unique `eventId`). The server assigns
-Wake-Up Race order from receipt time plus plausibility checks, never from client clocks alone.
+### Backend (`backend/`, Phase 3a)
+Cloudflare Worker (Hono, TypeScript) with D1 and one `AlarmRoom` Durable Object per shared
+alarm for WebSocket fan-out. Setup: `docs/BACKEND_SETUP.md`.
+
+- **Auth:** Google ID tokens verified against Google's JWKS (issuer, audience, expiry). The
+  server issues its own 90-day session token and stores only its SHA-256 hash.
+- **Entitlements:** `src/entitlements.ts` is the single source of plan features
+  (`maxGroupSize` 3 free / 100 premium, etc.). Plans come from the `subscriptions` table, which
+  only billing (Phase 6) writes; an expired Premium is Free.
+- **Groups:** the group-size check and the insert happen in one SQL statement, so concurrent
+  joins can't overfill a group. After a downgrade nobody is removed: the group is marked
+  `restricted` and can't grow, and alarms keep ringing.
+- **Events:** `POST /v1/events` accepts a batch from the device outbox. Each event has a
+  client UUID and is idempotent (replays return `duplicate`; reuse by another user is
+  rejected). The server checks participation, that the alarm rings on that date, device clock
+  plausibility (not >5 min ahead, not before the alarm, not >7 days stale), and accepts only a
+  closed set of high-level statuses. Unknown fields are dropped. The first completion per user
+  per occurrence wins across devices; `completions.seq` gives the server-side order that the
+  Wake-Up Race will use, never client clocks.
+- **Privacy:** there is no column anywhere for sensor data, screen or unlock activity.
+- **Live status:** participants' apps open `GET /v1/alarms/:id/live` (WebSocket); data-only
+  FCM pushes tell closed apps to sync.
 
 ## 5. Test coverage vs. spec §80
 
